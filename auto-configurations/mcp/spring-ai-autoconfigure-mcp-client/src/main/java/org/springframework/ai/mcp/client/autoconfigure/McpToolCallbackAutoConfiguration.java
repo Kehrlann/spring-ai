@@ -19,6 +19,7 @@ package org.springframework.ai.mcp.client.autoconfigure;
 import java.util.List;
 
 import io.modelcontextprotocol.client.McpAsyncClient;
+import io.modelcontextprotocol.client.McpAsyncTokenSupplier;
 import io.modelcontextprotocol.client.McpSyncClient;
 
 import org.springframework.ai.mcp.AsyncMcpToolCallbackProvider;
@@ -58,9 +59,10 @@ public class McpToolCallbackAutoConfiguration {
 
 	@Bean
 	@ConditionalOnProperty(prefix = McpClientCommonProperties.CONFIG_PREFIX, name = "type", havingValue = "ASYNC")
-	public AsyncMcpToolCallbackProvider mcpAsyncToolCallbacks(ObjectProvider<List<McpAsyncClient>> mcpClientsProvider) {
+	public AsyncMcpToolCallbackProvider mcpAsyncToolCallbacks(ObjectProvider<List<McpAsyncClient>> mcpClientsProvider,
+			ObjectProvider<McpAsyncTokenSupplier> tokenSupplier) {
 		List<McpAsyncClient> mcpClients = mcpClientsProvider.stream().flatMap(List::stream).toList();
-		return new AsyncMcpToolCallbackProvider(mcpClients);
+		return new AsyncMcpToolCallbackProvider(mcpClients, tokenSupplier.getIfAvailable());
 	}
 
 	public static class McpToolCallbackAutoConfigurationCondition extends AllNestedConditions {

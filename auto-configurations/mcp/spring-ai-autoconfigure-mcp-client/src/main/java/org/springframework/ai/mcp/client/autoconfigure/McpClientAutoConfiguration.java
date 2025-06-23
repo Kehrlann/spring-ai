@@ -20,9 +20,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 import io.modelcontextprotocol.client.McpAsyncClient;
+import io.modelcontextprotocol.client.McpAsyncTokenSupplier;
 import io.modelcontextprotocol.client.McpClient;
 import io.modelcontextprotocol.client.McpSyncClient;
+import io.modelcontextprotocol.client.transport.HttpClientSseClientTransport;
 import io.modelcontextprotocol.spec.McpSchema;
+import reactor.core.publisher.Mono;
 
 import org.springframework.ai.mcp.client.autoconfigure.configurer.McpAsyncClientConfigurer;
 import org.springframework.ai.mcp.client.autoconfigure.configurer.McpSyncClientConfigurer;
@@ -210,7 +213,8 @@ public class McpClientAutoConfiguration {
 	@ConditionalOnProperty(prefix = McpClientCommonProperties.CONFIG_PREFIX, name = "type", havingValue = "ASYNC")
 	public List<McpAsyncClient> mcpAsyncClients(McpAsyncClientConfigurer mcpAsyncClientConfigurer,
 			McpClientCommonProperties commonProperties,
-			ObjectProvider<List<NamedClientMcpTransport>> transportsProvider) {
+			ObjectProvider<List<NamedClientMcpTransport>> transportsProvider,
+			ObjectProvider<McpAsyncTokenSupplier> tokenPublisher) {
 
 		List<McpAsyncClient> mcpAsyncClients = new ArrayList<>();
 
@@ -232,7 +236,10 @@ public class McpClientAutoConfiguration {
 				var client = spec.build();
 
 				if (commonProperties.isInitialized()) {
-					client.initialize().block();
+					McpAsyncTokenSupplier publisher = tokenPublisher.getIfAvailable(() -> Mono::empty);
+					client.initialize()
+						.contextWrite(c -> c.put(HttpClientSseClientTransport.TOKEN_SUPPLIER_CONTEXT_KEY, publisher))
+						.block();
 				}
 
 				mcpAsyncClients.add(client);

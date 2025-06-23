@@ -21,6 +21,8 @@ import java.util.List;
 import java.util.function.BiPredicate;
 
 import io.modelcontextprotocol.client.McpAsyncClient;
+import io.modelcontextprotocol.client.McpAsyncTokenSupplier;
+import io.modelcontextprotocol.client.transport.HttpClientSseClientTransport;
 import io.modelcontextprotocol.spec.McpSchema.Tool;
 import io.modelcontextprotocol.util.Assert;
 import reactor.core.publisher.Flux;
@@ -78,17 +80,21 @@ public class AsyncMcpToolCallbackProvider implements ToolCallbackProvider {
 
 	private final BiPredicate<McpAsyncClient, Tool> toolFilter;
 
+	private final McpAsyncTokenSupplier tokenSupplier;
+
 	/**
 	 * Creates a new {@code AsyncMcpToolCallbackProvider} instance with a list of MCP
 	 * clients.
 	 * @param mcpClients the list of MCP clients to use for discovering tools
 	 * @param toolFilter a filter to apply to each discovered tool
 	 */
-	public AsyncMcpToolCallbackProvider(BiPredicate<McpAsyncClient, Tool> toolFilter, List<McpAsyncClient> mcpClients) {
+	public AsyncMcpToolCallbackProvider(BiPredicate<McpAsyncClient, Tool> toolFilter, List<McpAsyncClient> mcpClients,
+			McpAsyncTokenSupplier tokenSupplier) {
 		Assert.notNull(mcpClients, "MCP clients must not be null");
 		Assert.notNull(toolFilter, "Tool filter must not be null");
 		this.mcpClients = mcpClients;
 		this.toolFilter = toolFilter;
+		this.tokenSupplier = tokenSupplier;
 	}
 
 	/**
@@ -100,7 +106,20 @@ public class AsyncMcpToolCallbackProvider implements ToolCallbackProvider {
 	 * @throws IllegalArgumentException if mcpClients is null
 	 */
 	public AsyncMcpToolCallbackProvider(List<McpAsyncClient> mcpClients) {
-		this((mcpClient, tool) -> true, mcpClients);
+		this((mcpClient, tool) -> true, mcpClients, null);
+	}
+
+	/**
+	 * Creates a new {@code AsyncMcpToolCallbackProvider} instance with a list of MCP
+	 * clients.
+	 * @param mcpClients the list of MCP clients to use for discovering tools. Each client
+	 * typically connects to a different MCP server, allowing tool discovery from multiple
+	 * sources.
+	 * @param asyncTokenSupplier the supplier of the oauth2 token for listing tools
+	 * @throws IllegalArgumentException if mcpClients is null
+	 */
+	public AsyncMcpToolCallbackProvider(List<McpAsyncClient> mcpClients, McpAsyncTokenSupplier asyncTokenSupplier) {
+		this((mcpClient, tool) -> true, mcpClients, asyncTokenSupplier);
 	}
 
 	/**
@@ -110,7 +129,7 @@ public class AsyncMcpToolCallbackProvider implements ToolCallbackProvider {
 	 * @param toolFilter a filter to apply to each discovered tool
 	 */
 	public AsyncMcpToolCallbackProvider(BiPredicate<McpAsyncClient, Tool> toolFilter, McpAsyncClient... mcpClients) {
-		this(toolFilter, List.of(mcpClients));
+		this(toolFilter, List.of(mcpClients), null);
 	}
 
 	/**
@@ -150,6 +169,8 @@ public class AsyncMcpToolCallbackProvider implements ToolCallbackProvider {
 					.filter(tool -> this.toolFilter.test(mcpClient, tool))
 					.map(tool -> new AsyncMcpToolCallback(mcpClient, tool))
 					.toArray(ToolCallback[]::new))
+				.contextWrite(ctx -> tokenSupplier != null
+						? ctx.put(HttpClientSseClientTransport.TOKEN_SUPPLIER_CONTEXT_KEY, tokenSupplier) : ctx)
 				.block();
 
 			validateToolCallbacks(toolCallbacks);
