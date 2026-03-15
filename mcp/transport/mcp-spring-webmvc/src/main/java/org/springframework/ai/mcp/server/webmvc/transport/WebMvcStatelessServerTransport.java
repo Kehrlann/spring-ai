@@ -127,7 +127,7 @@ public final class WebMvcStatelessServerTransport implements McpStatelessServerT
 		}
 
 		try {
-			Map<String, List<String>> headers = request.headers().asHttpHeaders().asMultiValueMap();
+			var headers = HeaderUtils.collectHeaders(request);
 			this.securityValidator.validateHeaders(headers);
 		}
 		catch (ServerTransportSecurityException e) {
