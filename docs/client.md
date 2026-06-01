@@ -271,7 +271,7 @@ Elicitation enables servers to request additional information or user input thro
 
 ```java
 // Configure elicitation handler
-Function<ElicitRequest, ElicitResult> elicitationHandler = request -> {
+Function<ElicitFormRequest, ElicitResult> formElicitationHandler = request -> {
     // Present the request to the user and collect their response
     // The request contains a message and a schema describing the expected input
     Map<String, Object> userResponse = collectUserInput(request.message(), request.requestedSchema());
@@ -283,7 +283,7 @@ var client = McpClient.sync(transport)
     .capabilities(ClientCapabilities.builder()
         .elicitation()
         .build())
-    .elicitation(elicitationHandler)
+    .elicitation(formElicitationHandler)
     .build();
 ```
 
